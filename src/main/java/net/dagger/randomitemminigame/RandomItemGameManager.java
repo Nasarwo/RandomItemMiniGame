@@ -29,6 +29,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.inventory.ItemStack;
@@ -163,6 +164,8 @@ public class RandomItemGameManager implements Listener, CommandExecutor, TabComp
 		swapService.stop();
 		livesService.clear();
 		scoreboardService.clear();
+		// Очищаем инвентари всех игроков при остановке игры
+		clearAllPlayerInventories();
 		// Очищаем спавны всех игроков при остановке игры
 		clearAllPlayerRespawns();
 		state = GameState.IDLE;
@@ -315,6 +318,16 @@ public class RandomItemGameManager implements Listener, CommandExecutor, TabComp
 			sender.sendMessage(colored("Установлена роль " + roleName + " для " + targets.get(0).getName(), NamedTextColor.GREEN));
 		} else {
 			sender.sendMessage(colored("Установлена роль " + roleName + " для " + targets.size() + " игроков", NamedTextColor.GREEN));
+		}
+	}
+
+	@EventHandler
+	public void onEntityDamage(EntityDamageEvent event) {
+		// Отменяем весь урон для неуязвимых игроков (после телепортации)
+		if (event.getEntity() instanceof Player player) {
+			if (player.isInvulnerable()) {
+				event.setCancelled(true);
+			}
 		}
 	}
 
@@ -519,6 +532,15 @@ public class RandomItemGameManager implements Listener, CommandExecutor, TabComp
 		// Очищаем спавны всех игроков
 		for (Player player : Bukkit.getOnlinePlayers()) {
 			player.setRespawnLocation(null, false);
+		}
+	}
+
+	private void clearAllPlayerInventories() {
+		// Очищаем инвентари всех игроков
+		for (Player player : Bukkit.getOnlinePlayers()) {
+			player.getInventory().clear();
+			player.getInventory().setArmorContents(new ItemStack[] { null, null, null, null });
+			player.getInventory().setItemInOffHand(null);
 		}
 	}
 

@@ -76,13 +76,22 @@ public class SwapService {
 				}
 
 				ticksUntilSwap -= 20;
+
+				// Показываем предупреждения о предстоящем телепорте
+				int secondsUntilSwap = ticksUntilSwap / 20;
+				if (secondsUntilSwap == 60) {
+					participantBroadcast.accept(Component.text("Случайная смена мест через 1 минуту!", NamedTextColor.YELLOW));
+				} else if (secondsUntilSwap == 30) {
+					participantBroadcast.accept(Component.text("Случайная смена мест через 30 секунд!", NamedTextColor.YELLOW));
+				}
+
 				if (ticksUntilSwap <= 0) {
 					countdown = SWAP_COUNTDOWN_SECONDS;
 					participantBroadcast.accept(Component.text("Случайная смена мест начнётся через " + SWAP_COUNTDOWN_SECONDS + " секунд!", NamedTextColor.LIGHT_PURPLE));
 				}
 			}
 		};
-		task.runTaskTimer(plugin, 20L, 20L);
+		task.runTaskTimer(plugin, 0L, 20L);
 	}
 
 	public void stop() {
@@ -126,23 +135,31 @@ public class SwapService {
 			Location targetRespawnLocation = playerRespawnLocations.get(targetPlayer);
 
 			currentPlayer.teleport(targetLocation);
+			// Очищаем инвентарь игрока после телепортации
+			currentPlayer.getInventory().clear();
+			currentPlayer.getInventory().setArmorContents(new org.bukkit.inventory.ItemStack[] { null, null, null, null });
+			currentPlayer.getInventory().setItemInOffHand(null);
 			// Устанавливаем спавн того игрока, на чьё место был перемещён текущий игрок
 			// Это важно: после смерти игрок появится на спавне того, на чьё место он переместился,
 			// а не на своём старом спавне, что предотвратит поиск других игроков
 			currentPlayer.setRespawnLocation(targetRespawnLocation, true);
-			// Устанавливаем неуязвимость на 10 секунд (200 тиков) после телепортации
+			// Устанавливаем полную неуязвимость на 10 секунд (200 тиков) после телепортации
 			// Используем задержку, чтобы телепортация не сбросила неуязвимость
-			// Это предотвращает убийство игроков прыжком с высоты или в лаву перед телепортом
+			// Это предотвращает убийство игроков прыжком с высоты, в лаву, утоплением и т.д.
 			Bukkit.getScheduler().runTaskLater(plugin, () -> {
 				if (currentPlayer.isOnline()) {
-					// Устанавливаем максимальное значение для надёжности
+					// Устанавливаем полную неуязвимость
+					currentPlayer.setInvulnerable(true);
+					// Также устанавливаем максимальное значение noDamageTicks для дополнительной защиты
 					currentPlayer.setNoDamageTicks(Integer.MAX_VALUE);
-					// Через небольшое время устанавливаем правильное значение
+					// Через 10 секунд (200 тиков) отключаем неуязвимость
 					Bukkit.getScheduler().runTaskLater(plugin, () -> {
 						if (currentPlayer.isOnline()) {
-							currentPlayer.setNoDamageTicks(200);
+							currentPlayer.setInvulnerable(false);
+							// Устанавливаем стандартное значение noDamageTicks
+							currentPlayer.setNoDamageTicks(20);
 						}
-					}, 2L);
+					}, 200L);
 				}
 			}, 1L);
 			currentPlayer.playSound(targetLocation, Sound.ENTITY_ENDERMAN_TELEPORT, SoundCategory.MASTER, 1.0f, 1.0f);

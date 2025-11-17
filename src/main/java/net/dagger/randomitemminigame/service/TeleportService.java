@@ -135,25 +135,33 @@ public class TeleportService {
 					plugin.getLogger().info(String.format("[RandomItem] Teleporting %s to %.1f %.1f %.1f",
 							player.getName(), target.location().getX(), target.location().getY(), target.location().getZ()));
 					player.teleport(target.location());
+					// Очищаем инвентарь игрока после телепортации
+					player.getInventory().clear();
+					player.getInventory().setArmorContents(new org.bukkit.inventory.ItemStack[] { null, null, null, null });
+					player.getInventory().setItemInOffHand(null);
 					// Устанавливаем точку спавна игрока на его стартовую позицию в раунде
 					player.setRespawnLocation(target.location(), true);
 
 					// Принудительно обновляем чанки вокруг игрока, чтобы они стали видимыми
 					refreshChunksForPlayer(player, target.location());
 
-					// Устанавливаем неуязвимость на 10 секунд (200 тиков) после телепортации
+					// Устанавливаем полную неуязвимость на 10 секунд (200 тиков) после телепортации
 					// Используем задержку, чтобы телепортация не сбросила неуязвимость
-					// Это предотвращает убийство игроков прыжком с высоты или в лаву перед телепортом
+					// Это предотвращает убийство игроков прыжком с высоты, в лаву, утоплением и т.д.
 					Bukkit.getScheduler().runTaskLater(plugin, () -> {
 						if (player.isOnline() && !cancelled) {
-							// Устанавливаем максимальное значение для надёжности
+							// Устанавливаем полную неуязвимость
+							player.setInvulnerable(true);
+							// Также устанавливаем максимальное значение noDamageTicks для дополнительной защиты
 							player.setNoDamageTicks(Integer.MAX_VALUE);
-							// Через небольшое время устанавливаем правильное значение
+							// Через 10 секунд (200 тиков) отключаем неуязвимость
 							Bukkit.getScheduler().runTaskLater(plugin, () -> {
 								if (player.isOnline() && !cancelled) {
-									player.setNoDamageTicks(200);
+									player.setInvulnerable(false);
+									// Устанавливаем стандартное значение noDamageTicks
+									player.setNoDamageTicks(20);
 								}
-							}, 2L);
+							}, 200L);
 						}
 					}, 1L);
 
