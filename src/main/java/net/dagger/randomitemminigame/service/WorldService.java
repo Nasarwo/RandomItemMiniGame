@@ -13,12 +13,31 @@ import org.bukkit.advancement.AdvancementProgress;
 import org.bukkit.entity.Player;
 
 public class WorldService {
-	public void setWorldStateForCountdown() {
+	public void setWorldStateForLoading() {
 		for (World world : Bukkit.getWorlds()) {
-			world.setDifficulty(Difficulty.NORMAL);
+			world.setDifficulty(Difficulty.PEACEFUL);
 			world.setTime(0);
 			world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, true);
 			world.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
+		}
+	}
+
+	public void setSafetyBorder() {
+		for (World world : Bukkit.getWorlds()) {
+			world.getWorldBorder().setCenter(world.getSpawnLocation());
+			world.getWorldBorder().setSize(96); // 48 blocks in all directions = diameter 96
+		}
+	}
+
+	public void resetBorder() {
+		for (World world : Bukkit.getWorlds()) {
+			world.getWorldBorder().reset();
+		}
+	}
+
+	public void setWorldStateActive() {
+		for (World world : Bukkit.getWorlds()) {
+			world.setDifficulty(Difficulty.NORMAL);
 		}
 	}
 

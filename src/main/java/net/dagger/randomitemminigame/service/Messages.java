@@ -116,7 +116,8 @@ public class Messages {
 		AND_WON(" и победил!", " and won!", " і переміг!", NamedTextColor.GOLD),
 		LAST_PLAYER_STANDING("Игрок остался один в живых: ", "Last player standing: ", "Гравець залишився один в живих: ", NamedTextColor.GOLD),
 		WINS_ROUND(" и выигрывает раунд!", " wins the round!", " і виграє раунд!", NamedTextColor.GOLD),
-		RETURNING_TO_SPAWN("Возвращаем на спавн и очищаем инвентарь после раунда.", "Returning to spawn and clearing inventory after the round.", "Повертаємо на спавн і очищаємо інвентар після раунду.", NamedTextColor.GRAY);
+		RETURNING_TO_SPAWN("Возвращаем на спавн и очищаем инвентарь после раунда.", "Returning to spawn and clearing inventory after the round.", "Повертаємо на спавн і очищаємо інвентар після раунду.", NamedTextColor.GRAY),
+		BOSS_BAR_TARGET_ITEM("Найти: ", "Find: ", "Знайти: ", NamedTextColor.WHITE);
 
 		private final String russian;
 		private final String english;

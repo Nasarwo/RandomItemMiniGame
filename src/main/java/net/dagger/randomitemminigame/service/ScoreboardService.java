@@ -28,48 +28,47 @@ public class ScoreboardService {
 	public void createScoreboard(Map<UUID, Integer> playerLives) {
 		clear();
 
-		for (UUID playerId : playerLives.keySet()) {
-			Player player = Bukkit.getPlayer(playerId);
-			if (player != null && player.isOnline()) {
-				createPlayerScoreboard(player, playerLives.get(playerId));
-			}
+		// Create scoreboard for every online player (participants and spectators)
+		for (Player player : Bukkit.getOnlinePlayers()) {
+			createPlayerScoreboard(player, playerLives);
 		}
 	}
 
-	private void createPlayerScoreboard(Player player, int lives) {
+	private void createPlayerScoreboard(Player viewer, Map<UUID, Integer> allLives) {
 		Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
-		LanguageService.Language playerLang = languageService.getLanguage(player);
+		LanguageService.Language playerLang = languageService.getLanguage(viewer);
 		Objective objective = scoreboard.registerNewObjective("lives", Criteria.DUMMY,
 				Messages.get(playerLang, Messages.MessageKey.LIVES));
 		objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 
-		playerScoreboards.put(player.getUniqueId(), scoreboard);
-		playerObjectives.put(player.getUniqueId(), objective);
+		playerScoreboards.put(viewer.getUniqueId(), scoreboard);
+		playerObjectives.put(viewer.getUniqueId(), objective);
 
-		updatePlayerLives(player, lives);
-	}
-
-	public void updatePlayerLives(Player player, int lives) {
-		UUID playerId = player.getUniqueId();
-		Objective objective = playerObjectives.get(playerId);
-		if (objective == null) {
-			return;
+		// Populate with all players' lives
+		for (Map.Entry<UUID, Integer> entry : allLives.entrySet()) {
+			Player target = Bukkit.getPlayer(entry.getKey());
+			if (target != null) {
+				objective.getScore(target.getName()).setScore(entry.getValue());
+			}
 		}
 
-		String playerName = player.getName();
-		objective.getScore(playerName).setScore(lives);
-		Scoreboard scoreboard = playerScoreboards.get(playerId);
-		if (scoreboard != null) {
-			player.setScoreboard(scoreboard);
+		viewer.setScoreboard(scoreboard);
+	}
+
+	public void updatePlayerLives(Player targetPlayer, int lives) {
+		// Update this player's score on ALL active scoreboards
+		String targetName = targetPlayer.getName();
+
+		for (Objective objective : playerObjectives.values()) {
+			objective.getScore(targetName).setScore(lives);
 		}
 	}
 
 	public void updateAllPlayersLives(Map<UUID, Integer> playerLives) {
-		for (UUID playerId : playerLives.keySet()) {
-			Player player = Bukkit.getPlayer(playerId);
-			if (player != null && player.isOnline()) {
-				int lives = playerLives.getOrDefault(playerId, LivesService.getMaxLives());
-				updatePlayerLives(player, lives);
+		for (Map.Entry<UUID, Integer> entry : playerLives.entrySet()) {
+			Player player = Bukkit.getPlayer(entry.getKey());
+			if (player != null) {
+				updatePlayerLives(player, entry.getValue());
 			}
 		}
 	}
@@ -99,47 +98,43 @@ public class ScoreboardService {
 					.build();
 			String timerKey = LegacyComponentSerializer.legacySection().serialize(timerComponent);
 			lastTimerKeys.put(playerId, timerKey);
-			objective.getScore(timerKey).setScore(999);
-
-			player.setScoreboard(scoreboard);
+			objective.getScore(timerKey).setScore(999); // Show timer at the top
 		}
 	}
 
 	public void removePlayer(Player player) {
 		UUID playerId = player.getUniqueId();
+
+		// Remove their personal scoreboard data
 		Scoreboard scoreboard = playerScoreboards.remove(playerId);
 		Objective objective = playerObjectives.remove(playerId);
 		lastTimerKeys.remove(playerId);
 
 		if (scoreboard != null && objective != null) {
-			scoreboard.resetScores(player.getName());
-			String timerKey = lastTimerKeys.get(playerId);
-			if (timerKey != null) {
-				scoreboard.resetScores(timerKey);
-			}
 			objective.unregister();
 		}
 
+		// Reset their scoreboard to main
 		player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+
+		// Also remove this player from OTHER players' scoreboards
+		for (Objective obj : playerObjectives.values()) {
+			obj.getScoreboard().resetScores(player.getName());
+		}
 	}
 
 	public void clear() {
 		for (Player player : Bukkit.getOnlinePlayers()) {
 			UUID playerId = player.getUniqueId();
 			if (playerScoreboards.containsKey(playerId)) {
-				removePlayer(player);
+				player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
 			}
 		}
 
-		for (UUID playerId : new HashMap<>(playerScoreboards).keySet()) {
-			Player player = Bukkit.getPlayer(playerId);
-			if (player == null || !player.isOnline()) {
-				Scoreboard scoreboard = playerScoreboards.remove(playerId);
-				Objective objective = playerObjectives.remove(playerId);
-				lastTimerKeys.remove(playerId);
-				if (scoreboard != null && objective != null) {
-					objective.unregister();
-				}
+		// Unregister all objectives
+		for (Objective objective : playerObjectives.values()) {
+			if (objective != null) {
+				objective.unregister();
 			}
 		}
 
@@ -153,5 +148,13 @@ public class ScoreboardService {
 			return playerScoreboards.values().iterator().next();
 		}
 		return null;
+	}
+
+	// Called when a new player joins (e.g. spectator) to give them the current board
+	public void addViewer(Player viewer, Map<UUID, Integer> currentLives) {
+		if (playerScoreboards.containsKey(viewer.getUniqueId())) {
+			return;
+		}
+		createPlayerScoreboard(viewer, currentLives);
 	}
 }

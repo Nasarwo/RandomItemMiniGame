@@ -3,6 +3,7 @@ package net.dagger.randomitemminigame;
 import net.dagger.randomitemminigame.game.GameState;
 import net.dagger.randomitemminigame.game.Role;
 import net.dagger.randomitemminigame.service.CommandService;
+import net.dagger.randomitemminigame.service.GameInfoService;
 import net.dagger.randomitemminigame.service.ItemService;
 import net.dagger.randomitemminigame.service.LanguageService;
 import net.dagger.randomitemminigame.service.LivesService;
@@ -31,9 +32,13 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -42,7 +47,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 public class LootRushGameManager implements Listener, CommandExecutor, TabCompleter {
-	private static final int COUNTDOWN_SECONDS = 5;
+	private static final int COUNTDOWN_SECONDS = 10;
 
 	private final JavaPlugin plugin;
 	private final LanguageService languageService;
@@ -56,6 +61,7 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 	private final WinService winService;
 	private final WorldService worldService;
 	private final CommandService commandService;
+	private final GameInfoService gameInfoService;
 
 	private GameState state = GameState.IDLE;
 	private Material targetItem;
@@ -72,6 +78,7 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 		this.timerService = new TimerService(plugin, scoreboardService);
 		this.winService = new WinService(roleService);
 		this.worldService = new WorldService();
+		this.gameInfoService = new GameInfoService(languageService);
 		this.teleportService = new TeleportService(plugin, languageService, this::broadcastToParticipants, minScatterCoord, maxScatterCoord);
 		this.swapService = new SwapService(
 				plugin,
@@ -124,7 +131,16 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 		targetItem = itemService.pickRandomItem();
 		state = GameState.COUNTDOWN;
 		roleService.prepareSpectators(spectators);
-		worldService.setWorldStateForCountdown();
+		worldService.setWorldStateForLoading();
+		worldService.setSafetyBorder();
+
+		// Teleport to spawn and clear inventory for safety during loading
+		for (Player player : online) {
+			player.teleport(player.getWorld().getSpawnLocation());
+			player.getInventory().clear();
+			player.getInventory().setArmorContents(new ItemStack[] { null, null, null, null });
+			player.getInventory().setItemInOffHand(null);
+		}
 
 		broadcast(Messages.MessageKey.RANDOM_ITEM_HEADER);
 		for (Player player : Bukkit.getOnlinePlayers()) {
@@ -158,6 +174,8 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 
 			broadcast(Messages.MessageKey.PLAYERS_TELEPORTED, COUNTDOWN_SECONDS);
 			winService.removeTargetItemFromPlayers(participantsSnapshot, targetItem);
+			worldService.setWorldStateActive();
+			worldService.resetBorder();
 			startCountdown();
 		}));
 	}
@@ -180,7 +198,9 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 		clearAllPlayerRespawns();
 		state = GameState.IDLE;
 		targetItem = null;
+		gameInfoService.hide();
 		worldService.setWorldStateAfterGame();
+		worldService.resetBorder();
 		broadcast(Messages.MessageKey.GAME_STOPPED);
 	}
 
@@ -201,7 +221,9 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 		clearAllPlayerRespawns();
 		state = GameState.IDLE;
 		targetItem = null;
+		gameInfoService.hide();
 		worldService.setWorldStateAfterGame();
+		worldService.resetBorder();
 		broadcast(Messages.MessageKey.GAME_CANCELLED);
 	}
 
@@ -219,6 +241,7 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 
 		Material oldItem = targetItem;
 		targetItem = itemService.pickRandomItem();
+		gameInfoService.updateTargetItem(targetItem);
 
 		List<Player> participants = winService.getAlivePlayers();
 		winService.removeTargetItemFromPlayers(participants, targetItem);
@@ -359,6 +382,7 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 			LanguageService.Language oldLang = languageService.getLanguage(player);
 			languageService.setLanguage(player, newLang);
 			teleportService.onPlayerLanguageChanged(player, oldLang, newLang);
+			gameInfoService.updateLanguage(player, oldLang, newLang);
 			String langName;
 			if (newLang == LanguageService.Language.EN) {
 				langName = "English";
@@ -382,11 +406,54 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 	}
 
 	@EventHandler
+	public void onPlayerJoin(PlayerJoinEvent event) {
+		gameInfoService.addPlayer(event.getPlayer());
+		if (state == GameState.ACTIVE || state == GameState.COUNTDOWN) {
+			scoreboardService.addViewer(event.getPlayer(), livesService.getAllLives());
+		}
+	}
+
+	@EventHandler
+	public void onPlayerQuit(PlayerQuitEvent event) {
+		gameInfoService.removePlayer(event.getPlayer());
+		scoreboardService.removePlayer(event.getPlayer());
+	}
+
+	@EventHandler
 	public void onEntityDamage(EntityDamageEvent event) {
 		if (event.getEntity() instanceof Player player) {
-			if (player.isInvulnerable()) {
+			if (player.isInvulnerable() || (state == GameState.COUNTDOWN && roleService.getRole(player) == Role.PLAYER)) {
 				event.setCancelled(true);
 			}
+		}
+	}
+
+	@EventHandler
+	public void onPlayerMove(PlayerMoveEvent event) {
+		if (state != GameState.COUNTDOWN) {
+			return;
+		}
+
+		Player player = event.getPlayer();
+		if (roleService.getRole(player) != Role.PLAYER) {
+			return;
+		}
+
+		if (event.hasChangedBlock()) {
+			Location from = event.getFrom();
+			Location to = event.getTo();
+
+			// Allow looking around, but prevent movement
+			if (to.getX() != from.getX() || to.getY() != from.getY() || to.getZ() != from.getZ()) {
+				event.setTo(new Location(from.getWorld(), from.getX(), from.getY(), from.getZ(), to.getYaw(), to.getPitch()));
+			}
+		}
+	}
+
+	@EventHandler
+	public void onBlockBreak(BlockBreakEvent event) {
+		if (state == GameState.COUNTDOWN && roleService.getRole(event.getPlayer()) == Role.PLAYER) {
+			event.setCancelled(true);
 		}
 	}
 
@@ -425,7 +492,6 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 
 		if (!livesService.hasLives(player)) {
 			roleService.setRole(player, Role.SPECTATOR);
-			scoreboardService.removePlayer(player);
 			player.sendMessage(Messages.get(lang, Messages.MessageKey.NO_LIVES_LEFT));
 			broadcastToParticipants(Messages.MessageKey.PLAYER_OUT, player.getName());
 		} else {
@@ -458,8 +524,9 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 					long gameStartTime = System.currentTimeMillis();
 					timerService.updateState(state);
 					timerService.start(gameStartTime, state);
+					gameInfoService.showTargetItem(targetItem);
 					startMonitorTask();
-					swapService.start();
+					swapService.start(gameStartTime);
 					cancel();
 					countdownTask = null;
 					return;
@@ -519,6 +586,7 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 		swapService.stop();
 		livesService.clear();
 		scoreboardService.clear();
+		gameInfoService.hide();
 		for (Player player : Bukkit.getOnlinePlayers()) {
 			LanguageService.Language playerLang = languageService.getLanguage(player);
 			player.sendMessage(Component.text()
@@ -539,6 +607,7 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 				.build());
 		resetPlayersAfterGame();
 		worldService.setWorldStateAfterGame();
+		worldService.resetBorder();
 		playSoundForAll(Sound.ENTITY_WITHER_DEATH, SoundCategory.MASTER, 1.5f, 0.8f);
 		targetItem = null;
 	}

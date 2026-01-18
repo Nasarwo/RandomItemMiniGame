@@ -47,11 +47,11 @@ public class SwapService {
 		this.firstSwapDelayTicks = (swapIntervalSeconds - SWAP_COUNTDOWN_SECONDS) * 20;
 	}
 
-	public void start() {
+	public void start(long gameStartTime) {
 		stop();
 		task = new BukkitRunnable() {
-			private int ticksUntilSwap = firstSwapDelayTicks;
 			private int countdown = -1;
+			private long nextSwapTime = gameStartTime + (swapIntervalTicks * 50); // Convert ticks to ms (1 tick = 50ms)
 
 			@Override
 			public void run() {
@@ -61,46 +61,59 @@ public class SwapService {
 
 				List<Player> participants = participantsSupplier.get();
 				if (participants.size() < 2) {
-					ticksUntilSwap = firstSwapDelayTicks;
+					// Recalculate next swap time to keep it aligned if player count drops
+					long currentTime = System.currentTimeMillis();
+					long elapsed = currentTime - gameStartTime;
+					long intervalMs = swapIntervalTicks * 50L;
+					nextSwapTime = gameStartTime + ((elapsed / intervalMs) + 1) * intervalMs;
 					countdown = -1;
 					return;
 				}
 
-				if (countdown >= 0) {
-					LanguageService.Language defaultLang = languageService.getDefaultLanguage();
-					if (countdown == SWAP_COUNTDOWN_SECONDS) {
-						participantBroadcast.accept(Messages.get(defaultLang, Messages.MessageKey.SWAP_IN_SECONDS, countdown));
-					} else if (countdown > 0) {
-						participantBroadcast.accept(Messages.get(defaultLang, Messages.MessageKey.SWAP_IN_SECONDS_SHORT, countdown));
-					} else {
-						performSwap(participants);
-						countdown = -1;
-						ticksUntilSwap = swapIntervalTicks - (SWAP_COUNTDOWN_SECONDS * 20);
-						return;
-					}
-					countdown--;
+				long currentTime = System.currentTimeMillis();
+				long msUntilSwap = nextSwapTime - currentTime;
+				int secondsUntilSwap = (int) (msUntilSwap / 1000);
+
+				if (msUntilSwap <= 0) {
+					performSwap(participants);
+					countdown = -1;
+					nextSwapTime += swapIntervalTicks * 50L;
 					return;
 				}
 
-				ticksUntilSwap -= 20;
-
-				int secondsUntilSwap = ticksUntilSwap / 20;
-				LanguageService.Language defaultLang = languageService.getDefaultLanguage();
-
-				int realTimeUntilSwap = secondsUntilSwap + SWAP_COUNTDOWN_SECONDS;
-
-				if (realTimeUntilSwap == 60) {
-					participantBroadcast.accept(Messages.get(defaultLang, Messages.MessageKey.SWAP_IN_MINUTE));
-				} else if (realTimeUntilSwap == 30) {
-					participantBroadcast.accept(Messages.get(defaultLang, Messages.MessageKey.SWAP_IN_30_SECONDS));
+				if (secondsUntilSwap <= SWAP_COUNTDOWN_SECONDS && secondsUntilSwap > 0) {
+					// Avoid spamming if secondsUntilSwap stays the same for multiple ticks
+					if (countdown != secondsUntilSwap) {
+						countdown = secondsUntilSwap;
+						LanguageService.Language defaultLang = languageService.getDefaultLanguage();
+						if (countdown == SWAP_COUNTDOWN_SECONDS) {
+							participantBroadcast.accept(Messages.get(defaultLang, Messages.MessageKey.SWAP_IN_SECONDS, countdown));
+						} else {
+							participantBroadcast.accept(Messages.get(defaultLang, Messages.MessageKey.SWAP_IN_SECONDS_SHORT, countdown));
+						}
+					}
 				}
 
-				if (ticksUntilSwap <= 0) {
-					countdown = SWAP_COUNTDOWN_SECONDS;
+				// +1 to align with user expectation (e.g. at 60.9s show 60s message)
+				int displaySeconds = secondsUntilSwap + 1;
+
+				if (displaySeconds == 60) {
+					// Ensure we only broadcast once per second
+					if (countdown != 60) {
+						LanguageService.Language defaultLang = languageService.getDefaultLanguage();
+						participantBroadcast.accept(Messages.get(defaultLang, Messages.MessageKey.SWAP_IN_MINUTE));
+						countdown = 60; // Use countdown var to track we showed this
+					}
+				} else if (displaySeconds == 30) {
+					if (countdown != 30) {
+						LanguageService.Language defaultLang = languageService.getDefaultLanguage();
+						participantBroadcast.accept(Messages.get(defaultLang, Messages.MessageKey.SWAP_IN_30_SECONDS));
+						countdown = 30;
+					}
 				}
 			}
 		};
-		task.runTaskTimer(plugin, 0L, 20L);
+		task.runTaskTimer(plugin, 0L, 5L); // Check more frequently (every 5 ticks / 0.25s) for precision
 	}
 
 	public void stop() {
