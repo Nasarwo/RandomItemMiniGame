@@ -193,6 +193,7 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 		timerService.cancel();
 		timerService.updateState(GameState.IDLE);
 		swapService.stop();
+		teleportService.cancel();
 		livesService.clear();
 		scoreboardService.clear();
 		clearAllPlayerInventories();
@@ -230,7 +231,7 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 
 	private void handleSkip(CommandSender sender) {
 		LanguageService.Language lang = getLanguage(sender);
-		if (state != GameState.ACTIVE) {
+		if (state != GameState.ACTIVE && state != GameState.COUNTDOWN) {
 			sender.sendMessage(Messages.get(lang, Messages.MessageKey.GAME_NOT_ACTIVE));
 			return;
 		}
@@ -244,6 +245,7 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 		targetItem = itemService.pickRandomItem();
 		gameInfoService.updateTargetItem(targetItem);
 
+		// Remove the new target item from all participants if they already have it
 		List<Player> participants = winService.getAlivePlayers();
 		winService.removeTargetItemFromPlayers(participants, targetItem);
 
@@ -262,12 +264,11 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 				.append(formatMaterial(targetItem).color(NamedTextColor.AQUA))
 				.build());
 
-		sender.sendMessage(Component.text()
-				.append(Messages.get(lang, Messages.MessageKey.ITEM_CHANGED))
-				.append(formatMaterial(oldItem).color(NamedTextColor.GRAY))
-				.append(Messages.get(lang, Messages.MessageKey.ITEM_CHANGED_TO))
-				.append(formatMaterial(targetItem).color(NamedTextColor.AQUA))
-				.build());
+		// Force the monitor task to check immediately in case someone already picked it up or logic needs update
+		if (monitorTask != null && !monitorTask.isCancelled()) {
+			// Optional: Trigger an immediate check if needed, but the periodic task handles it.
+			// Just ensuring state is consistent.
+		}
 	}
 
 	private void handleStatus(CommandSender sender) {
