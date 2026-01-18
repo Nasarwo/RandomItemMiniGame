@@ -439,6 +439,12 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 			return;
 		}
 
+		// Only restrict movement after teleportation (when countdownTask is running),
+		// not during loading (when players are in spawn box)
+		if (countdownTask == null) {
+			return;
+		}
+
 		if (event.hasChangedBlock()) {
 			Location from = event.getFrom();
 			Location to = event.getTo();
