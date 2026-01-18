@@ -680,11 +680,19 @@ public class TeleportService {
 			return;
 		}
 
+		// Remove boss bar immediately if successful to avoid conflict with GameInfoService
+		if (success) {
+			for (BossBar bossBar : bossBars.values()) {
+				bossBar.removeAll();
+				bossBar.setVisible(false);
+			}
+			return;
+		}
+
 		for (Map.Entry<LanguageService.Language, BossBar> entry : bossBars.entrySet()) {
 			BossBar bossBar = entry.getValue();
-			bossBar.setProgress(success ? 1.0 : bossBar.getProgress());
-			String title = success ? Messages.getString(entry.getKey(), Messages.MessageKey.TELEPORTATION_COMPLETE)
-					: Messages.getString(entry.getKey(), Messages.MessageKey.TELEPORTATION_STOPPED);
+			bossBar.setProgress(bossBar.getProgress());
+			String title = Messages.getString(entry.getKey(), Messages.MessageKey.TELEPORTATION_STOPPED);
 			bossBar.setTitle(title);
 		}
 

@@ -21,14 +21,13 @@ public class GameInfoService {
 	}
 
 	public void showTargetItem(Material item) {
-		this.currentItem = item;
 		hide(); // Clean up previous bars
+		this.currentItem = item;
 
 		for (LanguageService.Language lang : LanguageService.Language.values()) {
-			Component title = Component.text(Messages.getString(lang, Messages.MessageKey.BOSS_BAR_TARGET_ITEM))
-					.append(Component.translatable(item.translationKey()).color(NamedTextColor.AQUA));
+			Component title = Component.translatable(item.translationKey()).color(NamedTextColor.WHITE);
 
-			BossBar bossBar = BossBar.bossBar(title, 1.0f, BossBar.Color.BLUE, BossBar.Overlay.PROGRESS);
+			BossBar bossBar = BossBar.bossBar(title, 1.0f, BossBar.Color.GREEN, BossBar.Overlay.PROGRESS);
 			bossBars.put(lang, bossBar);
 		}
 
@@ -91,8 +90,7 @@ public class GameInfoService {
 			LanguageService.Language lang = entry.getKey();
 			BossBar bar = entry.getValue();
 
-			Component title = Component.text(Messages.getString(lang, Messages.MessageKey.BOSS_BAR_TARGET_ITEM))
-					.append(Component.translatable(newItem.translationKey()).color(NamedTextColor.AQUA));
+			Component title = Component.translatable(newItem.translationKey()).color(NamedTextColor.WHITE);
 
 			bar.name(title);
 		}

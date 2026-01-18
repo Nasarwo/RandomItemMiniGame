@@ -176,6 +176,7 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 			winService.removeTargetItemFromPlayers(participantsSnapshot, targetItem);
 			worldService.setWorldStateActive();
 			worldService.resetBorder();
+			gameInfoService.showTargetItem(targetItem);
 			startCountdown();
 		}));
 	}
@@ -530,7 +531,6 @@ public class LootRushGameManager implements Listener, CommandExecutor, TabComple
 					long gameStartTime = System.currentTimeMillis();
 					timerService.updateState(state);
 					timerService.start(gameStartTime, state);
-					gameInfoService.showTargetItem(targetItem);
 					startMonitorTask();
 					swapService.start(gameStartTime);
 					cancel();
