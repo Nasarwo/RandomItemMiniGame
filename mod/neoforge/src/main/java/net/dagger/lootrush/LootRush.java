@@ -20,10 +20,8 @@ public class LootRush {
     private MinecraftServer server;
 
     public LootRush(ModContainer modContainer) {
-        // Register config
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
 
-        // Register ourselves for server events
         NeoForge.EVENT_BUS.register(this);
     }
 

@@ -31,13 +31,6 @@ public class ItemService {
                 }
             } else {
                 try {
-                    // Fallback to string parsing if ResourceLocation is problematic
-                    // But BuiltInRegistries.ITEM.get() needs ResourceLocation.
-                    // Let's try net.minecraft.resources.ResourceLocation again but maybe I can't import it?
-                    // I will try to use var and fully qualified name.
-                    // If this fails, I'll try to use a different registry method if available.
-                    // BuiltInRegistries.ITEM.get(ResourceLocation) is the standard way.
-
                     Identifier id = Identifier.parse(item.toLowerCase(Locale.ROOT));
                     Item material = BuiltInRegistries.ITEM.get(id)
                             .map(Holder.Reference::value)

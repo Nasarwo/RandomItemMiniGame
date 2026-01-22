@@ -40,7 +40,6 @@ WinService {
 
     public void removeTargetItemFromPlayers(Collection<? extends ServerPlayer> players, Item targetItem) {
         for (ServerPlayer player : players) {
-            // Simple removal of all matching items
             player.getInventory().clearOrCountMatchingItems(stack -> stack.is(targetItem), -1, player.inventoryMenu.getCraftSlots());
             player.containerMenu.broadcastChanges();
         }

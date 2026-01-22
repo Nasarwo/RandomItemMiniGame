@@ -37,7 +37,7 @@ public class WorldService {
         for (ServerLevel level : server.getAllLevels()) {
             BlockPos spawnPos = level.getLevelData().getRespawnData().pos();
             level.getWorldBorder().setCenter(spawnPos.getX(), spawnPos.getZ());
-            level.getWorldBorder().setSize(60000000); // Default max size
+            level.getWorldBorder().setSize(60000000);
         }
     }
 

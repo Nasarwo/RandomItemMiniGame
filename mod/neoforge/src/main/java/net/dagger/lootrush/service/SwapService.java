@@ -137,7 +137,6 @@ public class SwapService {
                 continue;
             }
 
-            // Teleport
             currentPlayer.teleportTo(
                     targetState.level(),
                     targetState.position().x,

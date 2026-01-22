@@ -87,7 +87,6 @@ public class GameInfoService {
         this.currentItem = newItem;
 
         for (Map.Entry<LanguageService.Language, ServerBossEvent> entry : bossBars.entrySet()) {
-            // LanguageService.Language lang = entry.getKey(); // Unused
             ServerBossEvent bar = entry.getValue();
 
             Component title = Component.translatable(newItem.getDescriptionId()).withStyle(ChatFormatting.WHITE);
