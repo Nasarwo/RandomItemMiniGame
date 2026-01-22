@@ -11,6 +11,7 @@ def toolsDir = layout.projectDirectory.dir("build/tools")
 def runDir = layout.projectDirectory.dir("run")
 def pluginsDir = runDir.dir("plugins")
 def paperJar = runDir.file("paper.jar")
+def paperVersion = "1.21.11"
 
 repositories {
 	mavenCentral()
@@ -25,7 +26,7 @@ repositories {
 }
 
 dependencies {
-	compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
+	compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
 }
 
 
@@ -39,6 +40,7 @@ java {
 
 tasks.withType(JavaCompile).configureEach {
 	options.release = javaVersion.toString() as Integer
+	options.compilerArgs += ['-Xlint:-removal']
 }
 
 tasks.register('prepareDirs') {
@@ -55,7 +57,11 @@ tasks.register('downloadPaper') {
 
 	doLast {
 		if (!paperJar.asFile.exists()) {
-			new URL("https://fill-data.papermc.io/v1/objects/8de7c52c3b02403503d16fac58003f1efef7dd7a0256786843927fa92ee57f1e/paper-1.21.8-60.jar").withInputStream { i ->
+			def apiUrl = "https://api.papermc.io/v2/projects/paper/versions/${paperVersion}"
+			def versionInfo = new groovy.json.JsonSlurper().parse(new URL(apiUrl))
+			def build = versionInfo.builds[-1]
+			def downloadUrl = "https://api.papermc.io/v2/projects/paper/versions/${paperVersion}/builds/${build}/downloads/paper-${paperVersion}-${build}.jar"
+			new URL(downloadUrl).withInputStream { i ->
 				paperJar.asFile.withOutputStream { it << i }
 			}
 		}
@@ -67,7 +73,7 @@ tasks.register('buildPaper', Exec) {
 	dependsOn tasks.downloadPaper
 
 	workingDir = runDir.asFile
-	commandLine = ["java", "-jar", paperJar.asFile.absolutePath, "--rev", "1.21.8"]
+	commandLine = ["java", "-jar", paperJar.asFile.absolutePath, "--rev", paperVersion]
 	onlyIf { !paperJar.asFile.exists() }
 }
 

@@ -1,0 +1,25 @@
+license="${mod_license}"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+logoFile="assets/lootrush/images/lootrush.png"
+authors="Nasarwo (DaGGeR)"
+description='''
+LootRush is a competitive “scavenge race” mini-game that keeps every round tense from the first second to the final grab. Players are scattered to safe random locations, a target item is announced, and the hunt begins: be the first to obtain it - or outlast everyone else, remember that players switch places every 5 minutes. To keep the pace high and the round fair, LootRush adds a lives system (with automatic spectator handling), a clean scoreboard with a running timer, and periodic random position swaps with warnings so nobody can camp the same spot forever. Teleportation is built for real servers: chunks are preloaded, progress is shown via BossBar, and players receive a short invulnerability window after being moved.
+'''
+
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="[${neo_version},)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"

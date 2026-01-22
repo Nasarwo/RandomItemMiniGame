@@ -27,7 +27,7 @@ public class GameInfoService {
 		for (LanguageService.Language lang : LanguageService.Language.values()) {
 			Component title = Component.translatable(item.translationKey()).color(NamedTextColor.WHITE);
 
-			BossBar bossBar = BossBar.bossBar(title, 1.0f, BossBar.Color.GREEN, BossBar.Overlay.PROGRESS);
+			BossBar bossBar = BossBar.bossBar(title, 0.0f, BossBar.Color.GREEN, BossBar.Overlay.PROGRESS);
 			bossBars.put(lang, bossBar);
 		}
 
@@ -87,12 +87,12 @@ public class GameInfoService {
 		this.currentItem = newItem;
 
 		for (Map.Entry<LanguageService.Language, BossBar> entry : bossBars.entrySet()) {
-			LanguageService.Language lang = entry.getKey();
 			BossBar bar = entry.getValue();
 
 			Component title = Component.translatable(newItem.translationKey()).color(NamedTextColor.WHITE);
 
 			bar.name(title);
+			bar.progress(0.0f);
 		}
 	}
 }

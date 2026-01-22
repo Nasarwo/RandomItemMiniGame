@@ -12,6 +12,7 @@ import org.bukkit.advancement.Advancement;
 import org.bukkit.advancement.AdvancementProgress;
 import org.bukkit.entity.Player;
 
+@SuppressWarnings("removal")
 public class WorldService {
 	public void setWorldStateForLoading() {
 		for (World world : Bukkit.getWorlds()) {

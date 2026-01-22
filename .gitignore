@@ -29,6 +29,11 @@ run/
 !run/plugins/
 run/plugins/*.jar
 !run/plugins/plugin.jar
+mod/neoforge/run/
+mod/neoforge/build/
+mod/neoforge/bin/
+mod/neoforge/out/
+mod/neoforge/logs/
 
 # Logs
 *.log
@@ -58,4 +63,3 @@ Thumbs.db
 
 # Exclude build output but keep source jars
 !build/libs/*-sources.jar
-

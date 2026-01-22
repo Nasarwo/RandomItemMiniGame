@@ -400,6 +400,7 @@ public class TeleportService {
 			if (cancelled) {
 				return;
 			}
+			updateLoadingBossBar(0, totalChunks);
 			for (PlayerScatterTarget target : allTargets) {
 				Player player = Bukkit.getPlayer(target.playerId());
 				if (player != null && player.isOnline()) {
@@ -415,6 +416,7 @@ public class TeleportService {
 
 		List<CompletableFuture<Chunk>> nearChunkFutures = new ArrayList<>();
 		int[] nearChunkCounter = {0};
+		int[] farChunkCounter = {0};
 		for (String key : nearChunkKeys) {
 			String[] parts = key.split(":");
 			World world = chunkWorlds.get(key);
@@ -427,6 +429,7 @@ public class TeleportService {
 						Bukkit.getScheduler().runTask(plugin, () -> {
 							if (!cancelled) {
 								nearChunkCounter[0]++;
+								updateLoadingBossBar(nearChunkCounter[0] + farChunkCounter[0], totalChunks);
 								for (PlayerScatterTarget target : allTargets) {
 									Player player = Bukkit.getPlayer(target.playerId());
 									if (player != null && player.isOnline()) {
@@ -478,7 +481,6 @@ public class TeleportService {
 				}
 
 				List<CompletableFuture<Chunk>> farChunkFutures = new ArrayList<>();
-				int[] farChunkCounter = {0};
 				for (String key : farChunkKeys) {
 					String[] parts = key.split(":");
 					World world = chunkWorlds.get(key);
@@ -491,6 +493,7 @@ public class TeleportService {
 						Bukkit.getScheduler().runTask(plugin, () -> {
 									if (!cancelled) {
 										farChunkCounter[0]++;
+										updateLoadingBossBar(nearChunkCounter[0] + farChunkCounter[0], totalChunks);
 										for (PlayerScatterTarget target : allTargets) {
 											Player player = Bukkit.getPlayer(target.playerId());
 											if (player != null && player.isOnline()) {
@@ -514,6 +517,7 @@ public class TeleportService {
 								return;
 							}
 
+							updateLoadingBossBar(totalChunks, totalChunks);
 							for (String key : farChunkKeys) {
 								String[] parts = key.split(":");
 								World world = chunkWorlds.get(key);
@@ -672,6 +676,18 @@ public class TeleportService {
 			bossBar.setProgress(progress);
 			String status = Messages.getString(entry.getKey(), Messages.MessageKey.SCATTER_BOSS_BAR, ready, total);
 			bossBar.setTitle(status);
+		}
+	}
+
+	private void updateLoadingBossBar(int loadedChunks, int totalChunks) {
+		if (currentBossBars.isEmpty() || totalChunks <= 0) {
+			return;
+		}
+		double progress = Math.min(1.0, Math.max(0.0, (double) loadedChunks / totalChunks));
+		for (Map.Entry<LanguageService.Language, BossBar> entry : currentBossBars.entrySet()) {
+			BossBar bossBar = entry.getValue();
+			bossBar.setTitle(Messages.getString(entry.getKey(), Messages.MessageKey.LOADING_CHUNKS));
+			bossBar.setProgress(progress);
 		}
 	}
 
